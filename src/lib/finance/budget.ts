@@ -1,4 +1,5 @@
 import { Budget, Transaction } from '../../types/finance';
+import { parseDateInput } from '../utils/dateParsing';
 
 export function getBudgetSpending(
   budgets: Budget[],
@@ -11,7 +12,7 @@ export function getBudgetSpending(
     .map(budget => {
       const spent = transactions
         .filter(t => {
-          const d = new Date(t.date);
+          const d = parseDateInput(t.date);
           return (
             t.categoryId === budget.categoryId &&
             t.type === 'expense' &&
