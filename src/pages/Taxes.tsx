@@ -1,0 +1,167 @@
+import { useState } from 'react';
+import { calculateFederalTax } from '../lib/taxes/taxEngine';
+import { FilingStatus } from '../types/tax';
+import { formatCurrency, formatPercent } from '../lib/utils/format';
+import { cn } from '../lib/utils/cn';
+
+export function Taxes() {
+  const [grossIncome, setGrossIncome] = useState(120000);
+  const [filingStatus, setFilingStatus] = useState<FilingStatus>('single');
+  const [retirement, setRetirement] = useState(19500);
+
+  const result = calculateFederalTax({
+    grossIncome,
+    filingStatus,
+    year: 2024,
+    retirementContributions: retirement,
+  });
+
+  return (
+    <div className="p-6 space-y-6 max-w-screen-md mx-auto">
+      {/* Inputs */}
+      <div className="bg-surface border border-border rounded-lg shadow-card p-5 space-y-4">
+        <h2 className="text-sm font-semibold text-foreground">Tax Inputs — 2024</h2>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-xs font-medium text-muted-foreground mb-1.5">
+              Gross Income
+            </label>
+            <input
+              type="number"
+              value={grossIncome}
+              onChange={e => setGrossIncome(Number(e.target.value))}
+              className="w-full px-3 py-2 text-sm border border-border rounded-md bg-surface text-foreground focus:outline-none focus:ring-1 focus:ring-brand"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-muted-foreground mb-1.5">
+              Filing Status
+            </label>
+            <select
+              value={filingStatus}
+              onChange={e => setFilingStatus(e.target.value as FilingStatus)}
+              className="w-full px-3 py-2 text-sm border border-border rounded-md bg-surface text-foreground focus:outline-none focus:ring-1 focus:ring-brand"
+            >
+              <option value="single">Single</option>
+              <option value="married_filing_jointly">Married Filing Jointly</option>
+              <option value="married_filing_separately">Married Filing Separately</option>
+              <option value="head_of_household">Head of Household</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-muted-foreground mb-1.5">
+              401(k) / IRA Contributions
+            </label>
+            <input
+              type="number"
+              value={retirement}
+              onChange={e => setRetirement(Number(e.target.value))}
+              className="w-full px-3 py-2 text-sm border border-border rounded-md bg-surface text-foreground focus:outline-none focus:ring-1 focus:ring-brand"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Summary cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {[
+          { label: 'Total Tax', value: formatCurrency(result.totalTax), color: 'text-negative' },
+          {
+            label: 'Effective Rate',
+            value: formatPercent(result.effectiveRate),
+            color: 'text-foreground',
+          },
+          {
+            label: 'Marginal Rate',
+            value: formatPercent(result.marginalRate),
+            color: 'text-foreground',
+          },
+          {
+            label: 'After-Tax Income',
+            value: formatCurrency(result.afterTaxIncome),
+            color: 'text-positive',
+          },
+        ].map(({ label, value, color }) => (
+          <div key={label} className="bg-surface border border-border rounded-lg shadow-card p-4">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              {label}
+            </p>
+            <p className={cn('text-xl font-semibold mt-1 tabular-nums', color)}>{value}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Breakdown */}
+      <div className="bg-surface border border-border rounded-lg shadow-card">
+        <div className="px-5 py-4 border-b border-border">
+          <h2 className="text-sm font-semibold text-foreground">Tax Breakdown</h2>
+        </div>
+        <div className="divide-y divide-border">
+          {[
+            {
+              label: 'Gross Income',
+              value: formatCurrency(result.grossIncome),
+              muted: false,
+            },
+            {
+              label: 'Retirement Contributions',
+              value: `−${formatCurrency(result.grossIncome - result.adjustedGrossIncome)}`,
+              muted: true,
+            },
+            {
+              label: 'Adjusted Gross Income',
+              value: formatCurrency(result.adjustedGrossIncome),
+              muted: false,
+            },
+            {
+              label: 'Standard Deduction',
+              value: `−${formatCurrency(result.adjustedGrossIncome - result.taxableIncome)}`,
+              muted: true,
+            },
+            {
+              label: 'Taxable Income',
+              value: formatCurrency(result.taxableIncome),
+              muted: false,
+            },
+          ].map(({ label, value, muted }) => (
+            <div key={label} className="px-5 py-3 flex justify-between items-center">
+              <span
+                className={cn('text-sm', muted ? 'text-muted-foreground' : 'text-foreground font-medium')}
+              >
+                {label}
+              </span>
+              <span
+                className={cn(
+                  'text-sm tabular-nums',
+                  muted ? 'text-muted-foreground' : 'text-foreground font-medium'
+                )}
+              >
+                {value}
+              </span>
+            </div>
+          ))}
+          <div className="px-5 py-3 bg-muted">
+            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              Tax Components
+            </span>
+          </div>
+          {result.breakdown.map(item => (
+            <div key={item.label} className="px-5 py-3 flex justify-between items-center">
+              <div>
+                <span className="text-sm text-foreground">{item.label}</span>
+                {item.rate !== undefined && (
+                  <span className="text-xs text-muted-foreground ml-2">
+                    ({formatPercent(item.rate)})
+                  </span>
+                )}
+              </div>
+              <span className="text-sm font-medium text-foreground tabular-nums">
+                {formatCurrency(item.amount)}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
