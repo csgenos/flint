@@ -1,4 +1,4 @@
-// Web Worker for Monte Carlo simulation — keeps UI thread free
+// Web Worker for Monte Carlo simulation - keeps the UI thread free.
 import { ProjectionAssumptions, MonteCarloResult } from '../../types/finance';
 
 interface WorkerInput {
