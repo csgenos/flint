@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Plus, Pencil, Trash2, Search } from 'lucide-react';
+import { Plus, Pencil, Trash2, Search, Tag, CheckSquare, Square } from 'lucide-react';
 import { useFinanceStore } from '../store/useFinanceStore';
 import { Transaction } from '../types/finance';
 import { formatCurrency } from '../lib/utils/format';
@@ -9,21 +9,32 @@ import { TransactionForm } from '../components/forms/TransactionForm';
 import { cn } from '../lib/utils/cn';
 
 export function Transactions() {
-  const { transactions, categories, deleteTransaction } = useFinanceStore();
+  const { transactions, categories, deleteTransaction, updateTransaction } = useFinanceStore();
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<'all' | 'income' | 'expense'>('all');
+  const [tagFilter, setTagFilter] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Transaction | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkCategoryId, setBulkCategoryId] = useState('');
 
   const getCategoryName = (id: string) => categories.find(c => c.id === id)?.name ?? '-';
 
+  const allTags = useMemo(() => {
+    const tagSet = new Set<string>();
+    transactions.forEach(t => (t.tags ?? []).forEach(tag => tagSet.add(tag)));
+    return Array.from(tagSet).sort();
+  }, [transactions]);
+
   const filtered = useMemo(() => {
     return transactions.filter(t => {
-      const matchesSearch = t.description.toLowerCase().includes(search.toLowerCase());
+      const matchesSearch = t.description.toLowerCase().includes(search.toLowerCase()) ||
+        (t.notes ?? '').toLowerCase().includes(search.toLowerCase());
       const matchesFilter = filter === 'all' || t.type === filter;
-      return matchesSearch && matchesFilter;
+      const matchesTag = !tagFilter || (t.tags ?? []).includes(tagFilter);
+      return matchesSearch && matchesFilter && matchesTag;
     });
-  }, [transactions, search, filter]);
+  }, [transactions, search, filter, tagFilter]);
 
   const openAdd = () => { setEditing(null); setModalOpen(true); };
   const openEdit = (txn: Transaction) => { setEditing(txn); setModalOpen(true); };
@@ -31,11 +42,39 @@ export function Transactions() {
     if (confirm('Delete this transaction?')) deleteTransaction(id);
   };
 
+  const toggleSelect = (id: string) => {
+    setSelected(s => {
+      const next = new Set(s);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const selectAll = () => {
+    if (selected.size === filtered.length) setSelected(new Set());
+    else setSelected(new Set(filtered.map(t => t.id)));
+  };
+
+  const bulkDelete = () => {
+    if (!confirm(`Delete ${selected.size} transactions?`)) return;
+    selected.forEach(id => deleteTransaction(id));
+    setSelected(new Set());
+  };
+
+  const bulkSetCategory = () => {
+    if (!bulkCategoryId) return;
+    selected.forEach(id => updateTransaction(id, { categoryId: bulkCategoryId }));
+    setSelected(new Set());
+    setBulkCategoryId('');
+  };
+
+  const categoryOptions = categories.map(c => ({ value: c.id, label: c.name }));
+
   return (
     <div className="p-6 space-y-4 max-w-screen-lg mx-auto">
-      {/* Toolbar */}
-      <div className="flex items-center gap-3">
-        <div className="relative flex-1 max-w-sm">
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="relative flex-1 min-w-[180px] max-w-sm">
           <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <input
             type="text"
@@ -50,27 +89,64 @@ export function Transactions() {
             <button
               key={f}
               onClick={() => setFilter(f)}
-              className={cn(
-                'px-3 py-1.5 rounded text-xs font-medium capitalize transition-colors',
-                filter === f ? 'bg-surface text-foreground shadow-subtle' : 'text-muted-foreground hover:text-foreground'
-              )}
+              className={cn('px-3 py-1.5 rounded text-xs font-medium capitalize transition-colors',
+                filter === f ? 'bg-surface text-foreground shadow-subtle' : 'text-muted-foreground hover:text-foreground')}
             >
               {f}
             </button>
           ))}
         </div>
-        <Button size="sm" onClick={openAdd}>
-          <Plus size={13} />
-          Add
-        </Button>
+        {allTags.length > 0 && (
+          <div className="flex items-center gap-1.5">
+            <Tag size={12} className="text-muted-foreground" />
+            <select
+              value={tagFilter}
+              onChange={e => setTagFilter(e.target.value)}
+              className="text-xs border border-border rounded-md px-2 py-1.5 bg-surface text-foreground focus:outline-none focus:ring-1 focus:ring-brand"
+            >
+              <option value="">All tags</option>
+              {allTags.map(t => <option key={t} value={t}>{t}</option>)}
+            </select>
+          </div>
+        )}
+        <Button size="sm" onClick={openAdd}><Plus size={13} />Add</Button>
       </div>
 
-      {/* Table */}
+      {selected.size > 0 && (
+        <div className="flex items-center gap-3 px-4 py-2.5 bg-brand/5 border border-brand/20 rounded-lg">
+          <span className="text-sm font-medium text-foreground">{selected.size} selected</span>
+          <div className="flex items-center gap-2 flex-1">
+            <select
+              value={bulkCategoryId}
+              onChange={e => setBulkCategoryId(e.target.value)}
+              className="text-xs border border-border rounded-md px-2 py-1.5 bg-surface text-foreground focus:outline-none focus:ring-1 focus:ring-brand"
+            >
+              <option value="">Recategorize...</option>
+              {categoryOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+            {bulkCategoryId && (
+              <Button size="sm" variant="secondary" onClick={bulkSetCategory}>Apply</Button>
+            )}
+          </div>
+          <Button size="sm" variant="secondary" onClick={bulkDelete}>
+            <Trash2 size={12} />Delete selected
+          </Button>
+          <button onClick={() => setSelected(new Set())} className="text-xs text-muted-foreground hover:text-foreground">Clear</button>
+        </div>
+      )}
+
       <div className="bg-surface border border-border rounded-lg shadow-card overflow-hidden">
         <table className="w-full">
           <thead>
             <tr className="border-b border-border bg-muted/50">
-              <th className="text-left px-5 py-3 text-xs font-medium text-muted-foreground">Description</th>
+              <th className="w-10 px-3 py-3">
+                <button onClick={selectAll}>
+                  {selected.size === filtered.length && filtered.length > 0
+                    ? <CheckSquare size={14} className="text-brand" />
+                    : <Square size={14} className="text-muted-foreground" />}
+                </button>
+              </th>
+              <th className="text-left px-3 py-3 text-xs font-medium text-muted-foreground">Description</th>
               <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground hidden sm:table-cell">Category</th>
               <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground hidden md:table-cell">Date</th>
               <th className="text-right px-5 py-3 text-xs font-medium text-muted-foreground">Amount</th>
@@ -79,9 +155,33 @@ export function Transactions() {
           </thead>
           <tbody className="divide-y divide-border">
             {filtered.map(txn => (
-              <tr key={txn.id} className="hover:bg-muted/30 transition-colors group">
-                <td className="px-5 py-3">
+              <tr key={txn.id} className={cn('hover:bg-muted/30 transition-colors group', selected.has(txn.id) && 'bg-brand/5')}>
+                <td className="px-3 py-3">
+                  <button onClick={() => toggleSelect(txn.id)}>
+                    {selected.has(txn.id)
+                      ? <CheckSquare size={14} className="text-brand" />
+                      : <Square size={14} className="text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />}
+                  </button>
+                </td>
+                <td className="px-3 py-3">
                   <p className="text-sm font-medium text-foreground">{txn.description}</p>
+                  {txn.notes && <p className="text-xs text-muted-foreground mt-0.5 truncate max-w-[220px]">{txn.notes}</p>}
+                  {txn.tags && txn.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {txn.tags.map(tag => (
+                        <button
+                          key={tag}
+                          onClick={() => setTagFilter(tagFilter === tag ? '' : tag)}
+                          className={cn(
+                            'px-1.5 py-0.5 rounded text-xs font-medium transition-colors',
+                            tagFilter === tag ? 'bg-brand text-white' : 'bg-brand/10 text-brand hover:bg-brand/20'
+                          )}
+                        >
+                          {tag}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </td>
                 <td className="px-4 py-3 hidden sm:table-cell">
                   <span className="text-xs text-muted-foreground">{getCategoryName(txn.categoryId)}</span>
@@ -90,10 +190,7 @@ export function Transactions() {
                   <span className="text-xs text-muted-foreground">{txn.date}</span>
                 </td>
                 <td className="px-5 py-3 text-right">
-                  <span className={cn(
-                    'text-sm font-semibold tabular-nums',
-                    txn.type === 'income' ? 'text-positive' : 'text-foreground'
-                  )}>
+                  <span className={cn('text-sm font-semibold tabular-nums', txn.type === 'income' ? 'text-positive' : 'text-foreground')}>
                     {txn.type === 'income' ? '+' : '-'}{formatCurrency(txn.amount)}
                   </span>
                 </td>
@@ -119,14 +216,10 @@ export function Transactions() {
         )}
       </div>
 
-      <Modal
-        open={modalOpen}
-        onOpenChange={setModalOpen}
-        title={editing ? 'Edit Transaction' : 'New Transaction'}
-      >
+      <Modal open={modalOpen} onOpenChange={setModalOpen} title={editing ? 'Edit Transaction' : 'New Transaction'}>
         <TransactionForm
           initial={editing ?? undefined}
-          onSuccess={() => setModalOpen(false)}
+          onSuccess={() => { setModalOpen(false); setSelected(new Set()); }}
           onCancel={() => setModalOpen(false)}
         />
       </Modal>

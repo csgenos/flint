@@ -1,8 +1,8 @@
 import { useState, useMemo } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ReferenceLine } from 'recharts';
 import { useFinanceStore } from '../store/useFinanceStore';
-import { Scenario } from '../types/scenario';
+import { Scenario, OneTimeEvent } from '../types/scenario';
 import { generateProjections } from '../lib/finance/projections';
 import { calculateNetWorth, calculateMonthSummary } from '../lib/finance/cashflow';
 import { Modal } from '../components/ui/Modal';
@@ -25,8 +25,65 @@ interface ScenarioFormState {
   retirementAge: string;
 }
 
-function ScenarioForm({ onSuccess, onCancel, colorIndex }: { onSuccess: (s: Scenario) => void; onCancel: () => void; colorIndex: number }) {
+function EventForm({
+  startYear,
+  onAdd,
+  onCancel,
+}: {
+  startYear: number;
+  onAdd: (e: OneTimeEvent) => void;
+  onCancel: () => void;
+}) {
+  const [form, setForm] = useState({
+    year: startYear.toString(),
+    label: '',
+    netWorthImpact: '',
+    incomeImpact: '',
+    expenseImpact: '',
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.label.trim() || !form.netWorthImpact) return;
+    onAdd({
+      year: parseInt(form.year),
+      label: form.label.trim(),
+      netWorthImpact: parseFloat(form.netWorthImpact) || 0,
+      incomeImpact: form.incomeImpact ? parseFloat(form.incomeImpact) : undefined,
+      expenseImpact: form.expenseImpact ? parseFloat(form.expenseImpact) : undefined,
+    });
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-3">
+      <div className="grid grid-cols-2 gap-3">
+        <Input label="Year" type="number" value={form.year} onChange={e => setForm(f => ({ ...f, year: e.target.value }))} />
+        <Input label="Label" placeholder="e.g. Buy a house" value={form.label} onChange={e => setForm(f => ({ ...f, label: e.target.value }))} />
+      </div>
+      <div className="grid grid-cols-3 gap-3">
+        <Input label="Net Worth Impact ($)" type="number" placeholder="-50000" value={form.netWorthImpact} onChange={e => setForm(f => ({ ...f, netWorthImpact: e.target.value }))} />
+        <Input label="Income Change ($/yr)" type="number" placeholder="0" value={form.incomeImpact} onChange={e => setForm(f => ({ ...f, incomeImpact: e.target.value }))} />
+        <Input label="Expense Change ($/yr)" type="number" placeholder="0" value={form.expenseImpact} onChange={e => setForm(f => ({ ...f, expenseImpact: e.target.value }))} />
+      </div>
+      <div className="flex justify-end gap-2">
+        <Button type="button" variant="secondary" size="sm" onClick={onCancel}>Cancel</Button>
+        <Button type="submit" size="sm">Add Event</Button>
+      </div>
+    </form>
+  );
+}
+
+function ScenarioForm({
+  onSuccess,
+  onCancel,
+  colorIndex,
+}: {
+  onSuccess: (s: Scenario) => void;
+  onCancel: () => void;
+  colorIndex: number;
+}) {
   const { assumptions } = useFinanceStore();
+  const startYear = new Date().getFullYear();
   const [form, setForm] = useState<ScenarioFormState>({
     name: '',
     description: '',
@@ -38,6 +95,8 @@ function ScenarioForm({ onSuccess, onCancel, colorIndex }: { onSuccess: (s: Scen
     retirementAge: assumptions.retirementAge.toString(),
   });
   const [errors, setErrors] = useState<Partial<ScenarioFormState>>({});
+  const [events, setEvents] = useState<OneTimeEvent[]>([]);
+  const [addingEvent, setAddingEvent] = useState(false);
 
   const set = (field: keyof ScenarioFormState, value: string) => {
     setForm(f => ({ ...f, [field]: value }));
@@ -61,6 +120,7 @@ function ScenarioForm({ onSuccess, onCancel, colorIndex }: { onSuccess: (s: Scen
         targetSavingsRate: parseFloat(form.targetSavingsRate) / 100,
         retirementAge: parseInt(form.retirementAge),
         currentAge: assumptions.currentAge,
+        oneTimeEvents: events.length > 0 ? events : undefined,
       },
     };
     onSuccess(scenario);
@@ -78,6 +138,35 @@ function ScenarioForm({ onSuccess, onCancel, colorIndex }: { onSuccess: (s: Scen
         <Input label="Target Savings Rate (%)" type="number" step="1" value={form.targetSavingsRate} onChange={e => set('targetSavingsRate', e.target.value)} />
         <Input label="Retirement Age" type="number" step="1" value={form.retirementAge} onChange={e => set('retirementAge', e.target.value)} />
       </div>
+
+      <div className="border border-border rounded-lg p-3 space-y-2">
+        <div className="flex items-center justify-between">
+          <p className="text-xs font-medium text-foreground">One-Time Events</p>
+          <button type="button" onClick={() => setAddingEvent(true)} className="text-xs text-brand hover:underline">+ Add event</button>
+        </div>
+        {events.length === 0 && !addingEvent && (
+          <p className="text-xs text-muted-foreground">No events — add milestones like buying a house or inheritance.</p>
+        )}
+        {events.map((ev, i) => (
+          <div key={i} className="flex items-center justify-between text-xs bg-muted/40 rounded px-2.5 py-1.5">
+            <span className="font-medium text-foreground">{ev.year} · {ev.label}</span>
+            <div className="flex items-center gap-3">
+              <span className={cn('tabular-nums font-medium', ev.netWorthImpact >= 0 ? 'text-positive' : 'text-negative')}>
+                {ev.netWorthImpact >= 0 ? '+' : ''}{formatCurrency(ev.netWorthImpact)}
+              </span>
+              <button type="button" onClick={() => setEvents(es => es.filter((_, j) => j !== i))} className="text-muted-foreground hover:text-negative">×</button>
+            </div>
+          </div>
+        ))}
+        {addingEvent && (
+          <EventForm
+            startYear={startYear}
+            onAdd={ev => { setEvents(es => [...es, ev]); setAddingEvent(false); }}
+            onCancel={() => setAddingEvent(false)}
+          />
+        )}
+      </div>
+
       <div className="flex justify-end gap-2 pt-2">
         <Button type="button" variant="secondary" onClick={onCancel}>Cancel</Button>
         <Button type="submit">Add Scenario</Button>
@@ -115,9 +204,20 @@ export function Scenarios() {
     return point;
   });
 
+  const eventYears = useMemo(() => {
+    const years = new Map<number, string[]>();
+    scenarios.forEach(sc => {
+      (sc.assumptions.oneTimeEvents ?? []).forEach(ev => {
+        const labels = years.get(ev.year) ?? [];
+        labels.push(ev.label);
+        years.set(ev.year, labels);
+      });
+    });
+    return years;
+  }, [scenarios]);
+
   return (
     <div className="p-6 space-y-5 max-w-screen-lg mx-auto">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <p className="text-xs text-muted-foreground">Compare financial trajectories under different assumptions</p>
@@ -127,10 +227,9 @@ export function Scenarios() {
         </Button>
       </div>
 
-      {/* Comparison chart */}
       <div className="bg-surface border border-border rounded-lg shadow-card p-5">
         <h2 className="text-sm font-semibold text-foreground mb-1">Net Worth Projection</h2>
-        <p className="text-xs text-muted-foreground mb-4">30-year trajectory - base case vs your scenarios</p>
+        <p className="text-xs text-muted-foreground mb-4">30-year trajectory — base case vs your scenarios</p>
         <div className="h-72">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={chartData} margin={{ top: 4, right: 0, left: 0, bottom: 0 }}>
@@ -139,6 +238,15 @@ export function Scenarios() {
               <YAxis tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} tickFormatter={(v: number) => formatCurrency(v, 'USD', true)} width={65} />
               <Tooltip formatter={(v: number, name: string) => [formatCurrency(v), name]} contentStyle={{ fontSize: 12, border: '1px solid #E5E7EB', borderRadius: 8 }} />
               <Legend iconType="plainline" wrapperStyle={{ fontSize: 12 }} />
+              {Array.from(eventYears.entries()).map(([year, labels]) => (
+                <ReferenceLine
+                  key={year}
+                  x={year}
+                  stroke="#94A3B8"
+                  strokeDasharray="3 3"
+                  label={{ value: labels[0], position: 'top', fontSize: 10, fill: '#94A3B8' }}
+                />
+              ))}
               <Line type="monotone" dataKey="Base Case" stroke="#111827" strokeWidth={2} dot={false} activeDot={{ r: 4, strokeWidth: 0 }} />
               {scenarios.map(sc => (
                 <Line key={sc.id} type="monotone" dataKey={sc.name} stroke={sc.color} strokeWidth={1.5} strokeDasharray="5 4" dot={false} activeDot={{ r: 3 }} />
@@ -148,11 +256,10 @@ export function Scenarios() {
         </div>
       </div>
 
-      {/* Scenario Cards */}
       {scenarios.length === 0 && (
         <div className="bg-surface border border-border rounded-lg shadow-card p-8 text-center">
           <p className="text-sm font-medium text-foreground">No scenarios yet</p>
-          <p className="text-xs text-muted-foreground mt-1 mb-4">Create a scenario to compare financial outcomes - new job, moving cities, buying a house.</p>
+          <p className="text-xs text-muted-foreground mt-1 mb-4">Create a scenario to compare financial outcomes — new job, moving cities, buying a house.</p>
           <Button onClick={() => setModalOpen(true)}><Plus size={13} />Create First Scenario</Button>
         </div>
       )}
@@ -165,6 +272,7 @@ export function Scenarios() {
             const atRetirement = proj?.projections[Math.min(retirementYear, 29)]?.netWorth ?? 0;
             const baseAtRetirement = baseProjections[Math.min(retirementYear, 29)]?.netWorth ?? 0;
             const diff = atRetirement - baseAtRetirement;
+            const eventCount = (sc.assumptions.oneTimeEvents ?? []).length;
 
             return (
               <div key={sc.id} className="bg-surface border border-border rounded-lg shadow-card p-5">
@@ -172,6 +280,9 @@ export function Scenarios() {
                   <div className="flex items-center gap-2">
                     <div className="w-2.5 h-2.5 rounded-full" style={{ background: sc.color }} />
                     <p className="text-sm font-semibold text-foreground">{sc.name}</p>
+                    {eventCount > 0 && (
+                      <span className="text-xs bg-muted text-muted-foreground px-1.5 py-0.5 rounded">{eventCount} event{eventCount > 1 ? 's' : ''}</span>
+                    )}
                   </div>
                   <button onClick={() => deleteScenario(sc.id)} className="p-1.5 rounded text-muted-foreground hover:text-negative hover:bg-red-50 transition-colors">
                     <Trash2 size={12} />

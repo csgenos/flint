@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
-import { Plus } from 'lucide-react';
+import { Plus, Target, AlertTriangle } from 'lucide-react';
+import { differenceInDays, parseISO } from 'date-fns';
 import { HealthScoreCard } from '../components/cards/HealthScoreCard';
 import { NetWorthChart } from '../components/charts/NetWorthChart';
 import { CashFlowChart } from '../components/charts/CashFlowChart';
@@ -19,11 +20,13 @@ import {
   estimateNetWorthHistory,
 } from '../lib/finance/cashflow';
 import { calculateHealthScore } from '../lib/finance/healthScore';
+import { getUpcomingBills, getSafeDailySpend } from '../lib/finance/cashflowForecast';
+import { getCategoryTrends } from '../lib/finance/trends';
 import { formatCurrency, formatPercent } from '../lib/utils/format';
 import { cn } from '../lib/utils/cn';
 
 export function Dashboard() {
-  const { accounts, budgets, categories, transactions } = useFinanceStore();
+  const { accounts, budgets, categories, transactions, recurringExpenses, paychecks, goals, netWorthSnapshots } = useFinanceStore();
   const [txnModalOpen, setTxnModalOpen] = useState(false);
   const now = new Date();
   const currentYear = now.getFullYear();
@@ -45,10 +48,18 @@ export function Dashboard() {
     () => calculateSpendingBreakdown(transactions, categories, currentYear, currentMonth),
     [transactions, categories, currentMonth, currentYear]
   );
-  const netWorthHistory = useMemo(
-    () => estimateNetWorthHistory(accounts, transactions, 12, now),
-    [accounts, transactions, currentMonth, currentYear]
-  );
+
+  const netWorthHistory = useMemo(() => {
+    if (netWorthSnapshots.length >= 3) {
+      return [...netWorthSnapshots].sort((a, b) => a.date.localeCompare(b.date)).slice(-13);
+    }
+    return estimateNetWorthHistory(accounts, transactions, 12, now);
+  }, [accounts, transactions, currentMonth, currentYear, netWorthSnapshots]);
+
+  const netWorthLabel = netWorthSnapshots.length >= 3
+    ? `Based on ${netWorthSnapshots.length} snapshots`
+    : 'Estimated from transactions';
+
   const budgetAdherenceRate = useMemo(
     () => calculateBudgetAdherenceRate(transactions, budgets, currentYear, currentMonth),
     [transactions, budgets, currentMonth, currentYear]
@@ -66,12 +77,30 @@ export function Dashboard() {
     hasInvestments: accounts.some(a => a.type === 'investment' || a.type === 'retirement'),
   }), [accounts, budgetAdherenceRate, summary, totalLiabilities]);
 
+  const checkingBalance = useMemo(
+    () => accounts.filter(a => a.type === 'checking').reduce((s, a) => s + a.balance, 0),
+    [accounts]
+  );
+  const upcomingBills = useMemo(() => getUpcomingBills(recurringExpenses, 30), [recurringExpenses]);
+  const upcomingBillsTotal = upcomingBills.reduce((s, b) => s + b.amount, 0);
+  const primaryPaycheck = paychecks[0];
+  const daysUntilPaycheck = primaryPaycheck
+    ? Math.max(differenceInDays(parseISO(primaryPaycheck.nextPayDate), now), 1)
+    : 14;
+  const safeDailySpend = getSafeDailySpend(checkingBalance, upcomingBillsTotal, daysUntilPaycheck);
+
+  const spendingAlerts = useMemo(
+    () => getCategoryTrends(transactions, categories, currentYear, currentMonth).filter(t => t.isAnomaly).slice(0, 3),
+    [transactions, categories, currentMonth, currentYear]
+  );
+
+  const topGoals = goals.slice(0, 3);
+
   const currentMonthName = now.toLocaleString('en-US', { month: 'long', year: 'numeric' });
 
   return (
     <div className="p-6 space-y-5 max-w-screen-xl mx-auto">
-      {/* Primary KPIs */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
         <div className="bg-surface border border-border rounded-lg shadow-card p-5">
           <p className="text-xs text-muted-foreground mb-1">Net Worth</p>
           <p className="text-3xl font-semibold text-foreground tabular-nums">{formatCurrency(netWorth, 'USD', true)}</p>
@@ -93,15 +122,74 @@ export function Dashboard() {
           </p>
           <p className="text-xs text-muted-foreground mt-1.5">Target: 20% / {summary.savingsRate >= 0.20 ? 'On track' : 'Below target'}</p>
         </div>
+        <div className="bg-surface border border-border rounded-lg shadow-card p-5">
+          <p className="text-xs text-muted-foreground mb-1">Safe to Spend Today</p>
+          <p className={cn(
+            'text-3xl font-semibold tabular-nums',
+            safeDailySpend < 0 ? 'text-negative' : safeDailySpend < 20 ? 'text-amber-500' : 'text-foreground'
+          )}>
+            {formatCurrency(safeDailySpend)}
+          </p>
+          <p className="text-xs text-muted-foreground mt-1.5">
+            {primaryPaycheck ? `${daysUntilPaycheck}d until paycheck` : 'No paycheck scheduled'}
+          </p>
+        </div>
       </div>
 
-      {/* Net Worth + Health Score */}
+      {upcomingBills.length > 0 && (
+        <div className="bg-surface border border-border rounded-lg shadow-card">
+          <div className="px-5 py-3 border-b border-border flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-foreground">Upcoming Bills</h2>
+            <span className="text-xs text-muted-foreground">{formatCurrency(upcomingBillsTotal)} due in 30 days</span>
+          </div>
+          <div className="divide-y divide-border">
+            {upcomingBills.slice(0, 5).map(b => {
+              const days = differenceInDays(parseISO(b.nextDueDate), now);
+              return (
+                <div key={b.id} className="flex items-center justify-between px-5 py-2.5">
+                  <div>
+                    <p className="text-sm font-medium text-foreground">{b.name}</p>
+                    <p className="text-xs text-muted-foreground capitalize">{b.recurrence}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm font-semibold text-foreground tabular-nums">{formatCurrency(b.amount)}</p>
+                    <p className={cn('text-xs', days <= 3 ? 'text-negative' : days <= 7 ? 'text-amber-500' : 'text-muted-foreground')}>
+                      {days === 0 ? 'Today' : days === 1 ? 'Tomorrow' : `in ${days}d`}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {spendingAlerts.length > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <AlertTriangle size={14} className="text-amber-600" />
+            <h2 className="text-sm font-semibold text-amber-800">Spending Alerts</h2>
+          </div>
+          <div className="space-y-1.5">
+            {spendingAlerts.map(t => (
+              <div key={t.categoryId} className="flex items-center justify-between text-xs">
+                <span className="text-amber-800 font-medium">{t.categoryName}</span>
+                <span className="text-amber-700">
+                  {formatCurrency(t.thisMonth)} this month vs {formatCurrency(t.threeMonthAvg)} avg
+                  {' '}({t.delta > 0 ? '+' : ''}{formatPercent(t.deltaPercent, 0)})
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2 bg-surface border border-border rounded-lg shadow-card p-5">
           <div className="flex items-start justify-between mb-4">
             <div>
               <h2 className="text-sm font-semibold text-foreground">Net Worth</h2>
-              <p className="text-xs text-muted-foreground">12-month trend</p>
+              <p className="text-xs text-muted-foreground">{netWorthLabel}</p>
             </div>
           </div>
           <div className="h-52">
@@ -111,7 +199,6 @@ export function Dashboard() {
         <HealthScoreCard score={healthScore} />
       </div>
 
-      {/* Cash Flow + Spending */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2 bg-surface border border-border rounded-lg shadow-card p-5">
           <h2 className="text-sm font-semibold text-foreground mb-1">Cash Flow</h2>
@@ -127,7 +214,39 @@ export function Dashboard() {
         </div>
       </div>
 
-      {/* Accounts + Recent Transactions */}
+      {topGoals.length > 0 && (
+        <div className="bg-surface border border-border rounded-lg shadow-card">
+          <div className="px-5 py-4 border-b border-border flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-foreground">Goals</h2>
+            <a href="/goals" className="text-xs text-brand hover:underline">View all</a>
+          </div>
+          <div className="divide-y divide-border">
+            {topGoals.map(g => {
+              const pct = g.targetAmount > 0 ? Math.min((g.currentAmount / g.targetAmount) * 100, 100) : 0;
+              return (
+                <div key={g.id} className="px-5 py-3">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <div className="flex items-center gap-2">
+                      <Target size={13} className="text-muted-foreground" />
+                      <span className="text-sm font-medium text-foreground">{g.name}</span>
+                    </div>
+                    <span className="text-xs text-muted-foreground tabular-nums">
+                      {formatCurrency(g.currentAmount)} / {formatCurrency(g.targetAmount)}
+                    </span>
+                  </div>
+                  <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                    <div
+                      className={cn('h-full rounded-full transition-all', pct >= 100 ? 'bg-positive' : 'bg-brand')}
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div className="bg-surface border border-border rounded-lg shadow-card">
           <div className="px-5 py-4 border-b border-border flex items-center justify-between">
