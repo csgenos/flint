@@ -99,7 +99,7 @@ export function MonteCarlo() {
         <div className="flex items-center justify-between mb-4">
           <div>
             <h2 className="text-sm font-semibold text-foreground">Simulation Parameters</h2>
-            <p className="text-xs text-muted-foreground">Runs in a Web Worker — UI stays responsive</p>
+            <p className="text-xs text-muted-foreground">Runs in a Web Worker - UI stays responsive</p>
           </div>
           <Button onClick={runSimulation} loading={running} size="sm">
             {!running && <Play size={12} />}
@@ -129,13 +129,13 @@ export function MonteCarlo() {
           <div className="bg-surface border border-border rounded-lg shadow-card p-5">
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Median at Year {params.years}</p>
             <p className="text-2xl font-semibold mt-1 text-foreground tabular-nums">
-              {result.percentile50.length > params.years ? formatCurrency(result.percentile50[params.years], 'USD', true) : '—'}
+              {result.percentile50.length > params.years ? formatCurrency(result.percentile50[params.years], 'USD', true) : '-'}
             </p>
           </div>
           <div className="bg-surface border border-border rounded-lg shadow-card p-5">
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">90th Percentile at Year {params.years}</p>
             <p className="text-2xl font-semibold mt-1 text-foreground tabular-nums">
-              {result.percentile90.length > params.years ? formatCurrency(result.percentile90[params.years], 'USD', true) : '—'}
+              {result.percentile90.length > params.years ? formatCurrency(result.percentile90[params.years], 'USD', true) : '-'}
             </p>
           </div>
         </div>
@@ -146,9 +146,9 @@ export function MonteCarlo() {
         <div className="flex items-center justify-between mb-4">
           <div>
             <h2 className="text-sm font-semibold text-foreground">Outcome Distribution</h2>
-            <p className="text-xs text-muted-foreground">{params.simulations.toLocaleString()} simulations · percentile bands</p>
+            <p className="text-xs text-muted-foreground">{params.simulations.toLocaleString()} simulations / percentile bands</p>
           </div>
-          {running && <div className="flex items-center gap-1.5 text-xs text-muted-foreground"><Loader2 size={12} className="animate-spin" />Running…</div>}
+          {running && <div className="flex items-center gap-1.5 text-xs text-muted-foreground"><Loader2 size={12} className="animate-spin" />Running...</div>}
         </div>
 
         {chartData.length > 0 ? (
@@ -189,8 +189,8 @@ export function MonteCarlo() {
 
         <div className="flex items-center gap-6 mt-3 justify-center">
           {[
-            { label: '10–90th percentile', opacity: 0.15, isLine: false },
-            { label: '25–75th percentile', opacity: 0.35, isLine: false },
+            { label: '10-90th percentile', opacity: 0.15, isLine: false },
+            { label: '25-75th percentile', opacity: 0.35, isLine: false },
             { label: 'Median (50th)', opacity: 1, isLine: true },
           ].map(({ label, opacity, isLine }) => (
             <div key={label} className="flex items-center gap-1.5">
