@@ -15,7 +15,7 @@ export function Transactions() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Transaction | null>(null);
 
-  const getCategoryName = (id: string) => categories.find(c => c.id === id)?.name ?? '—';
+  const getCategoryName = (id: string) => categories.find(c => c.id === id)?.name ?? '-';
 
   const filtered = useMemo(() => {
     return transactions.filter(t => {
@@ -39,7 +39,7 @@ export function Transactions() {
           <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <input
             type="text"
-            placeholder="Search transactions…"
+            placeholder="Search transactions..."
             value={search}
             onChange={e => setSearch(e.target.value)}
             className="w-full pl-9 pr-3 py-1.5 text-sm border border-border rounded-md bg-surface text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-brand"
@@ -94,7 +94,7 @@ export function Transactions() {
                     'text-sm font-semibold tabular-nums',
                     txn.type === 'income' ? 'text-positive' : 'text-foreground'
                   )}>
-                    {txn.type === 'income' ? '+' : '−'}{formatCurrency(txn.amount)}
+                    {txn.type === 'income' ? '+' : '-'}{formatCurrency(txn.amount)}
                   </span>
                 </td>
                 <td className="px-3 py-3">
