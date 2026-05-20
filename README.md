@@ -4,17 +4,20 @@ A premium personal finance desktop app for Windows, macOS, and Linux. Built with
 
 ## Features
 
-- **Dashboard** — net worth, cash flow, and savings rate at a glance
-- **Transactions** — full CRUD with categories and tagging
-- **Budgets** — monthly budget tracking with category rollup
+- **Dashboard** — net worth, cash flow, savings rate, safe-to-spend, spending alerts, and upcoming bills at a glance
+- **Goals** — savings goal tracking with progress bars, category badges, projected completion dates, and a debt-payoff planner (snowball / avalanche)
+- **Transactions** — full CRUD with categories, notes, tags, and bulk recategorize / delete
+- **Budgets** — monthly budget tracking with category rollup and spending trend analysis (3-month avg + anomaly detection)
 - **Paychecks** — paycheck schedule, allocation breakdown, safe daily spend
-- **Bills & Recurring** — recurring expense tracker with due-date alerts and autopay flags
+- **Bills & Recurring** — recurring expense tracker with due-date alerts, autopay flags, and subscription analytics
 - **Cashflow Forecast** — 30/60/90-day projected balance chart
 - **Projections** — long-range net worth projection with adjustable assumptions
 - **Monte Carlo** — retirement success probability simulation (Web Worker)
-- **Scenarios** — side-by-side financial scenario comparison
+- **Scenarios** — side-by-side financial scenario comparison with one-time events (buy house, inheritance, etc.)
 - **Tax Estimator** — federal + state tax calculation with FICA
-- **Import / Export** — CSV import with column mapping, CSV export
+- **Import / Export** — CSV import with column mapping, CSV export, full JSON backup and restore
+- **Global Search** — ⌘K overlay searches across transactions, goals, and bills
+- **Keyboard shortcuts** — ⌘K search, ⌘B toggle sidebar, ⌘N new transaction
 - **Onboarding** — 5-step setup wizard for new users
 
 ## Tech stack

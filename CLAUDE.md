@@ -24,7 +24,7 @@ React 18 + TypeScript + Vite + Tauri v2 + Tailwind + Radix UI + Zustand + Rechar
 ## State
 
 Two Zustand stores with `persist` + AES-GCM encrypted localStorage:
-- `useFinanceStore` — accounts, transactions, budgets, categories, scenarios, paychecks, allocations, recurringExpenses
+- `useFinanceStore` (version 4) — accounts, transactions, budgets, categories, scenarios, paychecks, allocations, recurringExpenses, goals, netWorthSnapshots
 - `useSettingsStore` — currency, locale, sidebarCollapsed, onboarding
 
 ## Storage
@@ -37,11 +37,12 @@ Two Zustand stores with `persist` + AES-GCM encrypted localStorage:
 ```
 src/lib/finance/
   cashflow.ts          calculateMonthSummary, calculateNetWorth (date-safe)
-  projections.ts       generateProjections (compound growth, not linear)
+  projections.ts       generateProjections (compound growth + one-time events)
   cashflowForecast.ts  buildCashflowForecast, getSafeDailySpend
   csvImport.ts         parseCsv (PapaParse), previewImport, buildTransactions
   budget.ts            budget util helpers
   healthScore.ts       calculateHealthScore
+  trends.ts            getCategoryTrends — 3-month avg + anomaly detection
 
 src/lib/taxes/
   taxEngine.ts         calculateFederalTax — uses input.year, state flat-rate via states.json
@@ -51,10 +52,11 @@ src/data/taxes/us/
   states.json          flat income tax rates for all 50 states + DC
 
 src/types/
-  finance.ts           Account, Transaction, Budget, Category, Projection*
+  finance.ts           Account, Transaction, Budget, Category, Projection*, NetWorthSnapshot
   planning.ts          PaycheckSchedule, RecurringExpense, CashflowForecastPoint, OnboardingProfile, ImportResult
-  scenario.ts          Scenario
+  scenario.ts          Scenario, OneTimeEvent
   tax.ts               TaxInput, TaxResult, TaxYear, FilingStatus
+  goals.ts             Goal, GoalCategory
 ```
 
 ## Routes
@@ -62,10 +64,11 @@ src/types/
 | Path | Page |
 |------|------|
 | `/` | Dashboard |
+| `/goals` | Goals |
+| `/budget` | Budget |
 | `/transactions` | Transactions |
-| `/budgets` | Budget |
-| `/paychecks` | Paychecks |
 | `/bills` | Bills |
+| `/paychecks` | Paychecks |
 | `/cashflow` | Cashflow Forecast |
 | `/projections` | Projections |
 | `/monte-carlo` | Monte Carlo |
@@ -81,3 +84,4 @@ src/types/
 - State taxes: flat-rate approximation only (no bracket support for states with progressive brackets).
 - Encryption: per-installation PBKDF2 key. For OS keychain integration, swap `encryptedStorage` for `@tauri-apps/plugin-stronghold`.
 - `investmentValue` initialized at 60% of current net worth (hardcoded fraction). Consider making this a user-configurable assumption.
+- Debt payoff planner uses simplified 0-interest model; does not account for compound interest.

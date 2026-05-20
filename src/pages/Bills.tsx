@@ -173,17 +173,12 @@ export function Bills() {
   const totalMonthly = useMemo(() => {
     return recurringExpenses.reduce((sum, r) => {
       const mult =
-        r.recurrence === 'yearly'
-          ? 1 / 12
-          : r.recurrence === 'quarterly'
-          ? 1 / 3
-          : r.recurrence === 'weekly'
-          ? 4.33
-          : r.recurrence === 'biweekly'
-          ? 2.17
-          : r.recurrence === 'semimonthly'
-          ? 2
-          : 1;
+        r.recurrence === 'yearly' ? 1 / 12
+        : r.recurrence === 'quarterly' ? 1 / 3
+        : r.recurrence === 'weekly' ? 4.33
+        : r.recurrence === 'biweekly' ? 2.17
+        : r.recurrence === 'semimonthly' ? 2
+        : 1;
       return sum + r.amount * mult;
     }, 0);
   }, [recurringExpenses]);
@@ -198,14 +193,8 @@ export function Bills() {
     [recurringExpenses]
   );
 
-  const openAdd = () => {
-    setEditing(null);
-    setModalOpen(true);
-  };
-  const openEdit = (r: RecurringExpense) => {
-    setEditing(r);
-    setModalOpen(true);
-  };
+  const openAdd = () => { setEditing(null); setModalOpen(true); };
+  const openEdit = (r: RecurringExpense) => { setEditing(r); setModalOpen(true); };
 
   const getDueLabel = (dateStr: string) => {
     const days = differenceInDays(parseISO(dateStr), new Date());
@@ -216,15 +205,35 @@ export function Bills() {
     return { label: format(parseISO(dateStr), 'MMM d'), className: 'text-muted-foreground' };
   };
 
+  const annualTotal = totalMonthly * 12;
+  const autopayCount = recurringExpenses.filter(r => r.autopay).length;
+  const activeCount = recurringExpenses.filter(r => r.status !== 'paid').length;
+
+  const topBills = useMemo(() => {
+    return [...recurringExpenses]
+      .map(r => {
+        const mult =
+          r.recurrence === 'yearly' ? 1 / 12
+          : r.recurrence === 'quarterly' ? 1 / 3
+          : r.recurrence === 'weekly' ? 4.33
+          : r.recurrence === 'biweekly' ? 2.17
+          : r.recurrence === 'semimonthly' ? 2
+          : 1;
+        return { ...r, monthlyEquiv: r.amount * mult };
+      })
+      .sort((a, b) => b.monthlyEquiv - a.monthlyEquiv)
+      .slice(0, 3);
+  }, [recurringExpenses]);
+
   return (
     <div className="p-6 space-y-5 max-w-screen-lg mx-auto">
-      {/* Summary */}
       <div className="grid grid-cols-3 gap-4">
         <div className="bg-surface border border-border rounded-lg shadow-card p-5">
           <p className="text-xs text-muted-foreground">Monthly Total</p>
           <p className="text-2xl font-semibold text-foreground tabular-nums mt-1">
             {formatCurrency(totalMonthly)}
           </p>
+          <p className="text-xs text-muted-foreground mt-1">{formatCurrency(annualTotal)} / year</p>
         </div>
         <div className="bg-surface border border-border rounded-lg shadow-card p-5">
           <p className="text-xs text-muted-foreground">Due This Week</p>
@@ -235,13 +244,26 @@ export function Bills() {
         </div>
         <div className="bg-surface border border-border rounded-lg shadow-card p-5">
           <p className="text-xs text-muted-foreground">Active Bills</p>
-          <p className="text-2xl font-semibold text-foreground tabular-nums mt-1">
-            {recurringExpenses.filter(r => r.status !== 'paid').length}
-          </p>
+          <p className="text-2xl font-semibold text-foreground tabular-nums mt-1">{activeCount}</p>
+          <p className="text-xs text-muted-foreground mt-1">{autopayCount} autopay · {activeCount - autopayCount} manual</p>
         </div>
       </div>
 
-      {/* Bills table */}
+      {topBills.length > 0 && (
+        <div className="bg-surface border border-border rounded-lg shadow-card px-5 py-4">
+          <p className="text-xs font-medium text-muted-foreground mb-2.5">Largest Commitments</p>
+          <div className="flex flex-wrap gap-2">
+            {topBills.map(r => (
+              <span key={r.id} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-border bg-muted/50 text-xs font-medium text-foreground">
+                <span>{r.name}</span>
+                <span className="text-muted-foreground">·</span>
+                <span className="tabular-nums">{formatCurrency(r.monthlyEquiv)}/mo</span>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="bg-surface border border-border rounded-lg shadow-card">
         <div className="flex items-center justify-between px-5 py-4 border-b border-border">
           <div className="flex items-center gap-3">
@@ -281,10 +303,7 @@ export function Bills() {
             {filtered.map(r => {
               const { label, className } = getDueLabel(r.nextDueDate);
               return (
-                <div
-                  key={r.id}
-                  className="flex items-center justify-between px-5 py-3.5 group"
-                >
+                <div key={r.id} className="flex items-center justify-between px-5 py-3.5 group">
                   <div className="flex items-center gap-3 flex-1 min-w-0">
                     <div
                       className={cn(
@@ -314,26 +333,17 @@ export function Bills() {
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       {r.status !== 'paid' && (
                         <button
-                          onClick={() => {
-                            markRecurringPaid(r.id);
-                            toast(`${r.name} marked as paid`);
-                          }}
+                          onClick={() => { markRecurringPaid(r.id); toast(`${r.name} marked as paid`); }}
                           className="p-1.5 rounded text-muted-foreground hover:text-positive hover:bg-green-50 transition-colors"
                           title="Mark paid"
                         >
                           <CheckCircle size={12} />
                         </button>
                       )}
-                      <button
-                        onClick={() => openEdit(r)}
-                        className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-                      >
+                      <button onClick={() => openEdit(r)} className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
                         <Pencil size={12} />
                       </button>
-                      <button
-                        onClick={() => setDeleteConfirm(r.id)}
-                        className="p-1.5 rounded text-muted-foreground hover:text-negative hover:bg-red-50 transition-colors"
-                      >
+                      <button onClick={() => setDeleteConfirm(r.id)} className="p-1.5 rounded text-muted-foreground hover:text-negative hover:bg-red-50 transition-colors">
                         <Trash2 size={12} />
                       </button>
                     </div>
@@ -345,16 +355,8 @@ export function Bills() {
         )}
       </div>
 
-      <Modal
-        open={modalOpen}
-        onOpenChange={setModalOpen}
-        title={editing ? 'Edit Bill' : 'New Recurring Bill'}
-      >
-        <BillForm
-          initial={editing ?? undefined}
-          onSuccess={() => setModalOpen(false)}
-          onCancel={() => setModalOpen(false)}
-        />
+      <Modal open={modalOpen} onOpenChange={setModalOpen} title={editing ? 'Edit Bill' : 'New Recurring Bill'}>
+        <BillForm initial={editing ?? undefined} onSuccess={() => setModalOpen(false)} onCancel={() => setModalOpen(false)} />
       </Modal>
 
       <ConfirmDialog
@@ -365,10 +367,7 @@ export function Bills() {
         confirmLabel="Delete"
         destructive
         onConfirm={() => {
-          if (deleteConfirm) {
-            deleteRecurringExpense(deleteConfirm);
-            toast('Bill removed', 'info');
-          }
+          if (deleteConfirm) { deleteRecurringExpense(deleteConfirm); toast('Bill removed', 'info'); }
           setDeleteConfirm(null);
         }}
       />

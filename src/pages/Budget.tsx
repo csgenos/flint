@@ -1,13 +1,14 @@
 import { useMemo, useState } from 'react';
-import { Plus, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Pencil, Trash2, TrendingUp, TrendingDown } from 'lucide-react';
 import { useFinanceStore } from '../store/useFinanceStore';
 import { getBudgetSpending } from '../lib/finance/budget';
-import { formatCurrency } from '../lib/utils/format';
+import { formatCurrency, formatPercent } from '../lib/utils/format';
 import { Modal } from '../components/ui/Modal';
 import { Button } from '../components/ui/Button';
 import { BudgetForm } from '../components/forms/BudgetForm';
 import type { Budget } from '../types/finance';
 import { cn } from '../lib/utils/cn';
+import { getCategoryTrends } from '../lib/finance/trends';
 
 export function Budget() {
   const { budgets, transactions, categories, deleteBudget } = useFinanceStore();
@@ -22,6 +23,11 @@ export function Budget() {
 
   const getCategoryName = (id: string) => categories.find(c => c.id === id)?.name ?? id;
 
+  const trends = useMemo(
+    () => getCategoryTrends(transactions, categories, now.getFullYear(), now.getMonth() + 1),
+    [transactions, categories]
+  );
+
   const totalBudget = budgetData.reduce((s, b) => s + b.amount, 0);
   const totalSpent = budgetData.reduce((s, b) => s + b.spent, 0);
   const totalRemaining = totalBudget - totalSpent;
@@ -35,7 +41,6 @@ export function Budget() {
 
   return (
     <div className="p-6 space-y-5 max-w-screen-lg mx-auto">
-      {/* Summary */}
       <div className="grid grid-cols-3 gap-4">
         {[
           { label: 'Total Budget', value: formatCurrency(totalBudget), color: 'text-foreground' },
@@ -49,7 +54,6 @@ export function Budget() {
         ))}
       </div>
 
-      {/* Overall Progress */}
       <div className="bg-surface border border-border rounded-lg shadow-card p-5">
         <div className="flex justify-between items-center mb-2">
           <span className="text-sm font-medium text-foreground">Overall Budget Usage</span>
@@ -65,7 +69,6 @@ export function Budget() {
         </div>
       </div>
 
-      {/* Category budgets */}
       <div className="bg-surface border border-border rounded-lg shadow-card">
         <div className="flex items-center justify-between px-5 py-4 border-b border-border">
           <h2 className="text-sm font-semibold text-foreground">Category Budgets</h2>
@@ -113,6 +116,45 @@ export function Budget() {
           ))}
         </div>
       </div>
+
+      {trends.length > 0 && (
+        <div className="bg-surface border border-border rounded-lg shadow-card">
+          <div className="px-5 py-4 border-b border-border">
+            <h2 className="text-sm font-semibold text-foreground">Spending Trends</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">This month vs 3-month average</p>
+          </div>
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-border bg-muted/50">
+                <th className="text-left px-5 py-2.5 text-xs font-medium text-muted-foreground">Category</th>
+                <th className="text-right px-4 py-2.5 text-xs font-medium text-muted-foreground">This month</th>
+                <th className="text-right px-4 py-2.5 text-xs font-medium text-muted-foreground">3-mo avg</th>
+                <th className="text-right px-5 py-2.5 text-xs font-medium text-muted-foreground">Change</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {trends.slice(0, 8).map(t => (
+                <tr key={t.categoryId} className={cn(t.isAnomaly && 'bg-amber-50/40')}>
+                  <td className="px-5 py-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-foreground">{t.categoryName}</span>
+                      {t.isAnomaly && <span className="text-xs px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded font-medium">Alert</span>}
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 text-right text-sm tabular-nums text-foreground">{formatCurrency(t.thisMonth)}</td>
+                  <td className="px-4 py-3 text-right text-sm tabular-nums text-muted-foreground">{formatCurrency(t.threeMonthAvg)}</td>
+                  <td className="px-5 py-3 text-right">
+                    <div className={cn('flex items-center justify-end gap-1 text-sm font-medium tabular-nums', t.delta > 0 ? 'text-negative' : 'text-positive')}>
+                      {t.delta > 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+                      {t.delta > 0 ? '+' : ''}{formatPercent(t.deltaPercent, 0)}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       <Modal open={modalOpen} onOpenChange={setModalOpen} title={editing ? 'Edit Budget' : 'New Budget'}>
         <BudgetForm
