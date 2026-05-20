@@ -1,4 +1,4 @@
-import { createBrowserRouter } from 'react-router-dom';
+import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { AppShell } from '../components/layout/AppShell';
 import { Dashboard } from '../pages/Dashboard';
 import { Budget } from '../pages/Budget';
@@ -8,11 +8,27 @@ import { MonteCarlo } from '../pages/MonteCarlo';
 import { Taxes } from '../pages/Taxes';
 import { Scenarios } from '../pages/Scenarios';
 import { Settings } from '../pages/Settings';
+import { Onboarding } from '../pages/Onboarding';
+import { useSettingsStore } from '../store/useSettingsStore';
+
+function RequireOnboarding() {
+  const onboarding = useSettingsStore(s => s.onboarding);
+  return onboarding?.completed ? <AppShell /> : <Navigate to="/onboarding" replace />;
+}
+
+function OnboardingEntry() {
+  const onboarding = useSettingsStore(s => s.onboarding);
+  return onboarding?.completed ? <Navigate to="/" replace /> : <Onboarding />;
+}
 
 export const router = createBrowserRouter([
   {
+    path: '/onboarding',
+    element: <OnboardingEntry />,
+  },
+  {
     path: '/',
-    element: <AppShell />,
+    element: <RequireOnboarding />,
     children: [
       { index: true, element: <Dashboard /> },
       { path: 'budget', element: <Budget /> },
