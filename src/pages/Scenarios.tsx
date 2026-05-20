@@ -130,7 +130,7 @@ export function Scenarios() {
       {/* Comparison chart */}
       <div className="bg-surface border border-border rounded-lg shadow-card p-5">
         <h2 className="text-sm font-semibold text-foreground mb-1">Net Worth Projection</h2>
-        <p className="text-xs text-muted-foreground mb-4">30-year trajectory — base case vs your scenarios</p>
+        <p className="text-xs text-muted-foreground mb-4">30-year trajectory - base case vs your scenarios</p>
         <div className="h-72">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={chartData} margin={{ top: 4, right: 0, left: 0, bottom: 0 }}>
@@ -152,7 +152,7 @@ export function Scenarios() {
       {scenarios.length === 0 && (
         <div className="bg-surface border border-border rounded-lg shadow-card p-8 text-center">
           <p className="text-sm font-medium text-foreground">No scenarios yet</p>
-          <p className="text-xs text-muted-foreground mt-1 mb-4">Create a scenario to compare financial outcomes — new job, moving cities, buying a house.</p>
+          <p className="text-xs text-muted-foreground mt-1 mb-4">Create a scenario to compare financial outcomes - new job, moving cities, buying a house.</p>
           <Button onClick={() => setModalOpen(true)}><Plus size={13} />Create First Scenario</Button>
         </div>
       )}
