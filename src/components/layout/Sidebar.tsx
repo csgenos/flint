@@ -44,7 +44,7 @@ export function Sidebar() {
             <div className="w-7 h-7 bg-foreground rounded-lg flex items-center justify-center">
               <span className="text-white text-xs font-bold tracking-tight">F</span>
             </div>
-            <span className="font-semibold text-foreground tracking-tight text-sm">Finch</span>
+            <span className="font-semibold text-foreground tracking-tight text-sm">Flint</span>
           </div>
         )}
         {sidebarCollapsed && (
