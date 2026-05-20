@@ -1,13 +1,13 @@
 import { useState } from 'react';
-import { Plus, Pencil, Trash2 } from 'lucide-react';
+import { Pencil, Plus, Trash2 } from 'lucide-react';
+import { AccountForm } from '../components/forms/AccountForm';
+import { Button } from '../components/ui/Button';
+import { Modal } from '../components/ui/Modal';
+import { cn } from '../lib/utils/cn';
+import { formatCurrency } from '../lib/utils/format';
 import { useFinanceStore } from '../store/useFinanceStore';
 import { useSettingsStore } from '../store/useSettingsStore';
 import { Account } from '../types/finance';
-import { formatCurrency } from '../lib/utils/format';
-import { Modal } from '../components/ui/Modal';
-import { Button } from '../components/ui/Button';
-import { AccountForm } from '../components/forms/AccountForm';
-import { cn } from '../lib/utils/cn';
 
 export function Settings() {
   const { currency, setCurrency } = useSettingsStore();
@@ -23,7 +23,6 @@ export function Settings() {
 
   return (
     <div className="p-6 space-y-5 max-w-screen-md mx-auto">
-      {/* Accounts */}
       <div className="bg-surface border border-border rounded-lg shadow-card">
         <div className="flex items-center justify-between px-5 py-4 border-b border-border">
           <h2 className="text-sm font-semibold text-foreground">Accounts</h2>
@@ -34,11 +33,13 @@ export function Settings() {
             <div key={account.id} className="flex items-center justify-between px-5 py-3 group">
               <div>
                 <p className="text-sm font-medium text-foreground">{account.name}</p>
-                <p className="text-xs text-muted-foreground capitalize">{account.type}{account.institution ? ` · ${account.institution}` : ''}</p>
+                <p className="text-xs text-muted-foreground capitalize">
+                  {account.type}{account.institution ? ` / ${account.institution}` : ''}
+                </p>
               </div>
               <div className="flex items-center gap-3">
                 <span className={cn('text-sm font-semibold tabular-nums', account.balance < 0 ? 'text-negative' : 'text-foreground')}>
-                  {account.balance < 0 ? '−' : ''}{formatCurrency(Math.abs(account.balance))}
+                  {account.balance < 0 ? '-' : ''}{formatCurrency(Math.abs(account.balance))}
                 </span>
                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                   <button onClick={() => openEdit(account)} className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
@@ -54,7 +55,6 @@ export function Settings() {
         </div>
       </div>
 
-      {/* Preferences */}
       <div className="bg-surface border border-border rounded-lg shadow-card">
         <div className="px-5 py-4 border-b border-border">
           <h2 className="text-sm font-semibold text-foreground">Preferences</h2>
@@ -69,21 +69,20 @@ export function Settings() {
             onChange={e => setCurrency(e.target.value)}
             className="px-3 py-1.5 text-sm border border-border rounded-md bg-surface text-foreground focus:outline-none focus:ring-1 focus:ring-brand"
           >
-            <option value="USD">USD — US Dollar</option>
-            <option value="EUR">EUR — Euro</option>
-            <option value="GBP">GBP — British Pound</option>
+            <option value="USD">USD - US Dollar</option>
+            <option value="EUR">EUR - Euro</option>
+            <option value="GBP">GBP - British Pound</option>
           </select>
         </div>
       </div>
 
-      {/* About */}
       <div className="bg-surface border border-border rounded-lg shadow-card">
         <div className="px-5 py-4 border-b border-border">
-          <h2 className="text-sm font-semibold text-foreground">About Finch</h2>
+          <h2 className="text-sm font-semibold text-foreground">About Flint</h2>
         </div>
         <div className="px-5 py-4 space-y-1">
           <p className="text-sm text-foreground font-medium">Version 0.2.0</p>
-          <p className="text-xs text-muted-foreground">Built with Tauri · React · TypeScript · Local-first storage</p>
+          <p className="text-xs text-muted-foreground">Built with React, TypeScript, and local-first storage.</p>
         </div>
       </div>
 
