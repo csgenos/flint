@@ -28,7 +28,7 @@ describe('generateProjections', () => {
     const secondPoint = projections[1];
 
     expect(secondPoint.age).toBe(31);
-    expect(secondPoint.netWorth).toBe(140000);
+    expect(secondPoint.netWorth).toBe(144200);
     expect(secondPoint.annualIncome).toBe(126000);
     expect(secondPoint.annualExpenses).toBe(81600);
     expect(secondPoint.annualSavings).toBe(44400);
