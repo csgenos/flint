@@ -8,19 +8,25 @@ export function generateProjections(
   years = 30
 ): ProjectionPoint[] {
   const points: ProjectionPoint[] = [];
+
+  const startYear = new Date().getFullYear();
+  // 60% of net worth assumed invested; the rest is liquid/non-compounding.
+  let investmentValue = Math.max(0, currentNetWorth * 0.6);
   let netWorth = currentNetWorth;
   let income = annualIncome;
   let expenses = annualExpenses;
-  let investmentValue = currentNetWorth * 0.6;
-  const startYear = new Date().getFullYear();
 
   for (let i = 0; i <= years; i++) {
-    const age = assumptions.currentAge + i;
     const savings = income - expenses;
+
+    // Apply investment return, then add savings contributions (or subtract deficit).
+    const investmentReturn = investmentValue * assumptions.annualInvestmentReturn;
+    investmentValue = Math.max(0, investmentValue + investmentReturn + savings);
+    netWorth += savings + investmentReturn;
 
     points.push({
       year: startYear + i,
-      age,
+      age: assumptions.currentAge + i,
       netWorth: Math.round(netWorth),
       annualIncome: Math.round(income),
       annualExpenses: Math.round(expenses),
@@ -28,9 +34,6 @@ export function generateProjections(
       investmentValue: Math.round(investmentValue),
     });
 
-    const investmentGain = investmentValue * assumptions.annualInvestmentReturn;
-    investmentValue += investmentGain + Math.max(0, savings);
-    netWorth += savings + investmentGain;
     income *= 1 + assumptions.annualIncomeGrowth;
     expenses *= 1 + assumptions.annualExpenseGrowth;
   }

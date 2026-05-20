@@ -62,6 +62,7 @@ export function calculateFederalTax(input: TaxInput): TaxResult {
   const ficaTax = isUS ? ssTax + medicareTax : 0;
 
   const stateTax = jurisdiction?.noIncomeTax ? 0 : taxableIncome * (jurisdiction?.rate ?? 0);
+
   const totalTax = federalTax + stateTax + ficaTax;
   const effectiveRate = input.grossIncome > 0 ? totalTax / input.grossIncome : 0;
   const afterTaxIncome = input.grossIncome - totalTax;
@@ -70,10 +71,6 @@ export function calculateFederalTax(input: TaxInput): TaxResult {
     ...(isUS
       ? [
           { label: 'Federal Income Tax', amount: federalTax, rate: marginalRate },
-        ]
-      : []),
-    ...(isUS
-      ? [
           { label: 'Social Security', amount: ssTax, rate: socialSecurity.rate },
           { label: 'Medicare', amount: medicareTax, rate: medicare.rate },
         ]

@@ -1,9 +1,10 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
+import { encryptedStorage } from '../lib/storage/encryptedStorage';
 import { Account, Transaction, Budget, Category, ProjectionAssumptions } from '../types/finance';
 import { Scenario } from '../types/scenario';
 import { PaycheckSchedule, PaycheckAllocation, RecurringExpense } from '../types/planning';
-import { clearStateStorageKeys, createLegacyStateStorage } from '../lib/storage/localStore';
+import { createLegacyStateStorage } from '../lib/storage/localStore';
 import {
   sampleAccounts, sampleTransactions, sampleBudgets, sampleCategories,
 } from '../data/sampleData';
@@ -70,8 +71,6 @@ const defaultAssumptions: ProjectionAssumptions = {
   retirementAge: 65,
   currentAge: 32,
 };
-
-const financeStorageKeys = ['flint-finance', 'finch-finance'];
 
 export const useFinanceStore = create<FinanceStore>()(
   persist(
@@ -144,14 +143,7 @@ export const useFinanceStore = create<FinanceStore>()(
     {
       name: 'flint-finance',
       version: 3,
-      storage: createJSONStorage(() => createLegacyStateStorage(['finch-finance'])),
-      partialize: () => ({}),
-      onRehydrateStorage: () => (state) => {
-        // Keep existing data in memory for this session, then purge browser storage.
-        if (state) {
-          clearStateStorageKeys(financeStorageKeys);
-        }
-      },
+      storage: createJSONStorage(() => encryptedStorage),
       migrate: (persistedState, version) => {
         const state = (persistedState ?? {}) as Partial<FinanceStore>;
 
@@ -174,3 +166,12 @@ export const useFinanceStore = create<FinanceStore>()(
     }
   )
 );
+
+// Helper: attempt a one-time migration from legacy unencrypted keys.
+export function migrateLegacyFinanceData(): void {
+  const legacyAdapter = createLegacyStateStorage(['finch-finance']);
+  const raw = legacyAdapter.getItem('finch-finance');
+  if (raw) {
+    legacyAdapter.removeItem('finch-finance');
+  }
+}

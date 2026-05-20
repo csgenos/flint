@@ -7,9 +7,10 @@ export function calculateMonthSummary(
   year: number,
   month: number
 ): MonthSummary {
+  // Parse YYYY-MM-DD strings directly to avoid timezone-shifted month boundaries.
   const filtered = transactions.filter(t => {
-    const d = parseDateInput(t.date);
-    return d.getFullYear() === year && d.getMonth() + 1 === month;
+    const [y, m] = t.date.split('-').map(Number);
+    return y === year && m === month;
   });
 
   const totalIncome = filtered
@@ -119,7 +120,7 @@ export function calculateSpendingBreakdown(
 }
 
 export function estimateNetWorthHistory(
-  accounts: { balance: number }[],
+  accounts: { balance: number; type: string }[],
   transactions: Transaction[],
   months = 12,
   referenceDate = new Date()

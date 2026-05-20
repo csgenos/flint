@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
+import { encryptedStorage } from '../lib/storage/encryptedStorage';
 import { OnboardingProfile } from '../types/planning';
-import { createLegacyStateStorage } from '../lib/storage/localStore';
 import { inferTaxResidency } from '../data/taxes/jurisdictions';
 
 interface SettingsStore {
@@ -34,7 +34,7 @@ export const useSettingsStore = create<SettingsStore>()(
     {
       name: 'flint-settings',
       version: 3,
-      storage: createJSONStorage(() => createLegacyStateStorage(['finch-settings'])),
+      storage: createJSONStorage(() => encryptedStorage),
       migrate: (persistedState, version) => {
         const state = (persistedState ?? {}) as Partial<SettingsStore>;
 
@@ -51,16 +51,13 @@ export const useSettingsStore = create<SettingsStore>()(
           return {
             currency: state.currency ?? 'USD',
             locale: state.locale ?? 'en-US',
-            theme: 'light',
+            theme: 'light' as const,
             sidebarCollapsed: state.sidebarCollapsed ?? false,
             onboarding,
           };
         }
 
-        return {
-          ...state,
-          onboarding,
-        } as SettingsStore;
+        return { ...state, onboarding } as SettingsStore;
       },
     }
   )

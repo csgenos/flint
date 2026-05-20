@@ -13,7 +13,7 @@ export default defineConfig({
   server: {
     port: 5173,
     strictPort: true,
-    host: true,
+    host: process.env.TAURI_PLATFORM ? '127.0.0.1' : 'localhost',
   },
   envPrefix: ['VITE_', 'TAURI_'],
   build: {
