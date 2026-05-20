@@ -22,6 +22,7 @@ export function MonteCarlo() {
   const now = new Date();
   const netWorth = calculateNetWorth(accounts);
   const summary = calculateMonthSummary(transactions, now.getFullYear(), now.getMonth() + 1);
+  const annualExpenses = summary.totalExpenses * 12;
 
   const [params, setParams] = useState<SimParams>({
     years: 30,
@@ -60,9 +61,15 @@ export function MonteCarlo() {
 
     worker.onerror = () => setRunning(false);
 
+    const yearsToRetirement = Math.max(0, assumptions.retirementAge - assumptions.currentAge);
+    const inflationAdjustedRetirementSpend =
+      annualExpenses * Math.pow(1 + params.inflation / 100, yearsToRetirement);
+    const retirementTarget = inflationAdjustedRetirementSpend * 25;
+
     worker.postMessage({
       initialNetWorth: netWorth,
       annualSavings: summary.netCashFlow * 12,
+      retirementTarget,
       assumptions: {
         ...assumptions,
         annualInvestmentReturn: params.expectedReturn / 100,
@@ -73,7 +80,7 @@ export function MonteCarlo() {
       volatility: params.volatility / 100,
       contributionGrowthRate: params.contributionGrowthRate / 100,
     });
-  }, [running, netWorth, summary, assumptions, params]);
+  }, [annualExpenses, running, netWorth, summary, assumptions, params]);
 
   useEffect(() => {
     runSimulation();
@@ -124,7 +131,7 @@ export function MonteCarlo() {
             <p className={`text-3xl font-semibold mt-1 tabular-nums ${result.successProbability >= 0.8 ? 'text-positive' : result.successProbability >= 0.6 ? 'text-warning' : 'text-negative'}`}>
               {formatPercent(result.successProbability)}
             </p>
-            <p className="text-xs text-muted-foreground mt-1">reached retirement goal</p>
+            <p className="text-xs text-muted-foreground mt-1">reached 25x inflation-adjusted annual spending by retirement</p>
           </div>
           <div className="bg-surface border border-border rounded-lg shadow-card p-5">
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Median at Year {params.years}</p>

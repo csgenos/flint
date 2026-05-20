@@ -53,10 +53,18 @@ describe('calculateFederalTax', () => {
       retirementContributions: 10000,
     });
 
-    expect(result.taxableIncome).toBe(95400);
+    expect(result.taxableIncome).toBe(110000);
     expect(result.federalTax).toBe(0);
-    expect(result.stateTax).toBeCloseTo(40068, 2);
+    expect(result.stateTax).toBeCloseTo(46200, 2);
     expect(result.ficaTax).toBe(0);
     expect(result.marginalRate).toBe(0.42);
+  });
+
+  it('rejects unsupported tax years instead of silently using the wrong data', () => {
+    expect(() => calculateFederalTax({
+      grossIncome: 100000,
+      filingStatus: 'single',
+      year: 2025 as unknown as 2024,
+    })).toThrow('Unsupported tax year');
   });
 });

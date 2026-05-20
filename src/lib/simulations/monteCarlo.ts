@@ -11,21 +11,26 @@ function normalRandom(mean: number, std: number): number {
 export function runMonteCarlo(
   initialNetWorth: number,
   annualSavings: number,
+  retirementTarget: number,
   assumptions: ProjectionAssumptions,
   simulations = 1000,
   years = 30
 ): MonteCarloResult {
   const returnMean = assumptions.annualInvestmentReturn;
   const returnStd = 0.15;
+  const safeSimulations = Math.max(1, Math.floor(simulations));
+  const safeYears = Math.max(1, Math.floor(years));
+  const retirementYear = Math.max(0, Math.min(assumptions.retirementAge - assumptions.currentAge, safeYears));
+  const safeRetirementTarget = Math.max(0, retirementTarget);
 
   const allPaths: number[][] = [];
 
-  for (let sim = 0; sim < simulations; sim++) {
+  for (let sim = 0; sim < safeSimulations; sim++) {
     const path: number[] = [initialNetWorth];
     let portfolio = initialNetWorth;
     let savings = annualSavings;
 
-    for (let y = 1; y <= years; y++) {
+    for (let y = 1; y <= safeYears; y++) {
       const annualReturn = normalRandom(returnMean, returnStd);
       portfolio = portfolio * (1 + annualReturn) + savings;
       savings *= 1 + assumptions.annualIncomeGrowth - assumptions.annualExpenseGrowth;
@@ -34,7 +39,7 @@ export function runMonteCarlo(
     allPaths.push(path);
   }
 
-  const yearLabels = Array.from({ length: years + 1 }, (_, i) => new Date().getFullYear() + i);
+  const yearLabels = Array.from({ length: safeYears + 1 }, (_, i) => new Date().getFullYear() + i);
 
   const getPercentile = (paths: number[][], yearIdx: number, p: number): number => {
     const sorted = paths.map(path => path[yearIdx]).sort((a, b) => a - b);
@@ -42,9 +47,8 @@ export function runMonteCarlo(
     return sorted[Math.min(idx, sorted.length - 1)];
   };
 
-  const retirementYear = assumptions.retirementAge - assumptions.currentAge;
   const successCount = allPaths.filter(
-    path => path[Math.min(retirementYear, years)] > 0
+    path => path[retirementYear] >= safeRetirementTarget
   ).length;
 
   return {
@@ -54,6 +58,6 @@ export function runMonteCarlo(
     percentile50: yearLabels.map((_, i) => Math.round(getPercentile(allPaths, i, 50))),
     percentile75: yearLabels.map((_, i) => Math.round(getPercentile(allPaths, i, 75))),
     percentile90: yearLabels.map((_, i) => Math.round(getPercentile(allPaths, i, 90))),
-    successProbability: successCount / simulations,
+    successProbability: successCount / safeSimulations,
   };
 }

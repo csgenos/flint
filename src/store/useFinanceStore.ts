@@ -3,7 +3,7 @@ import { createJSONStorage, persist } from 'zustand/middleware';
 import { Account, Transaction, Budget, Category, ProjectionAssumptions } from '../types/finance';
 import { Scenario } from '../types/scenario';
 import { PaycheckSchedule, PaycheckAllocation, RecurringExpense } from '../types/planning';
-import { createLegacyStateStorage } from '../lib/storage/localStore';
+import { clearStateStorageKeys, createLegacyStateStorage } from '../lib/storage/localStore';
 import {
   sampleAccounts, sampleTransactions, sampleBudgets, sampleCategories,
 } from '../data/sampleData';
@@ -19,28 +19,42 @@ interface FinanceStore {
   allocations: PaycheckAllocation[];
   recurringExpenses: RecurringExpense[];
 
+  // Accounts
   addAccount: (account: Account) => void;
   updateAccount: (id: string, updates: Partial<Account>) => void;
   deleteAccount: (id: string) => void;
+
+  // Transactions
   addTransaction: (transaction: Transaction) => void;
   updateTransaction: (id: string, updates: Partial<Transaction>) => void;
   deleteTransaction: (id: string) => void;
+
+  // Budgets
   addBudget: (budget: Budget) => void;
   updateBudget: (id: string, updates: Partial<Budget>) => void;
   deleteBudget: (id: string) => void;
+
+  // Categories
   addCategory: (category: Category) => void;
   updateCategory: (id: string, updates: Partial<Category>) => void;
   deleteCategory: (id: string) => void;
+
+  // Scenarios
   addScenario: (scenario: Scenario) => void;
   updateScenario: (id: string, updates: Partial<Scenario>) => void;
   deleteScenario: (id: string) => void;
+
+  // Assumptions
   updateAssumptions: (updates: Partial<ProjectionAssumptions>) => void;
+
   addPaycheck: (p: PaycheckSchedule) => void;
   updatePaycheck: (id: string, updates: Partial<PaycheckSchedule>) => void;
   deletePaycheck: (id: string) => void;
+
   addAllocation: (a: PaycheckAllocation) => void;
   updateAllocation: (id: string, updates: Partial<PaycheckAllocation>) => void;
   deleteAllocation: (id: string) => void;
+
   addRecurringExpense: (r: RecurringExpense) => void;
   updateRecurringExpense: (id: string, updates: Partial<RecurringExpense>) => void;
   deleteRecurringExpense: (id: string) => void;
@@ -56,6 +70,8 @@ const defaultAssumptions: ProjectionAssumptions = {
   retirementAge: 65,
   currentAge: 32,
 };
+
+const financeStorageKeys = ['flint-finance', 'finch-finance'];
 
 export const useFinanceStore = create<FinanceStore>()(
   persist(
@@ -74,7 +90,12 @@ export const useFinanceStore = create<FinanceStore>()(
       updateAccount: (id, updates) => set(s => ({
         accounts: s.accounts.map(a => a.id === id ? { ...a, ...updates } : a),
       })),
-      deleteAccount: (id) => set(s => ({ accounts: s.accounts.filter(a => a.id !== id) })),
+      deleteAccount: (id) => set(s => ({
+        accounts: s.accounts.filter(a => a.id !== id),
+        transactions: s.transactions.filter(t => t.accountId !== id),
+        paychecks: s.paychecks.filter(p => p.accountId !== id),
+        recurringExpenses: s.recurringExpenses.filter(r => r.accountId !== id),
+      })),
 
       addTransaction: (transaction) => set(s => ({ transactions: [transaction, ...s.transactions] })),
       updateTransaction: (id, updates) => set(s => ({
@@ -122,12 +143,19 @@ export const useFinanceStore = create<FinanceStore>()(
     }),
     {
       name: 'flint-finance',
-      version: 2,
+      version: 3,
       storage: createJSONStorage(() => createLegacyStateStorage(['finch-finance'])),
+      partialize: () => ({}),
+      onRehydrateStorage: () => (state) => {
+        // Keep existing data in memory for this session, then purge browser storage.
+        if (state) {
+          clearStateStorageKeys(financeStorageKeys);
+        }
+      },
       migrate: (persistedState, version) => {
         const state = (persistedState ?? {}) as Partial<FinanceStore>;
 
-        if (version < 2) {
+        if (version < 3) {
           return {
             accounts: state.accounts ?? sampleAccounts,
             transactions: state.transactions ?? sampleTransactions,

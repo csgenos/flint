@@ -1,15 +1,16 @@
 import { format, startOfMonth, endOfMonth, subMonths, isWithinInterval } from 'date-fns';
+import { parseDateInput } from './dateParsing';
 
 export function formatMonthYear(date: Date | string): string {
-  return format(new Date(date), 'MMM yyyy');
+  return format(parseDateInput(date), 'MMM yyyy');
 }
 
 export function formatShortDate(date: Date | string): string {
-  return format(new Date(date), 'MMM d');
+  return format(parseDateInput(date), 'MMM d');
 }
 
 export function formatFullDate(date: Date | string): string {
-  return format(new Date(date), 'MMMM d, yyyy');
+  return format(parseDateInput(date), 'MMMM d, yyyy');
 }
 
 export function getCurrentMonthRange(): { start: Date; end: Date } {
@@ -24,5 +25,5 @@ export function getPreviousMonthRange(monthsBack = 1): { start: Date; end: Date 
 
 export function isInCurrentMonth(dateStr: string): boolean {
   const { start, end } = getCurrentMonthRange();
-  return isWithinInterval(new Date(dateStr), { start, end });
+  return isWithinInterval(parseDateInput(dateStr), { start, end });
 }
