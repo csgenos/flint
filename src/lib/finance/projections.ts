@@ -12,15 +12,14 @@ export function generateProjections(
   let income = annualIncome;
   let expenses = annualExpenses;
   let investmentValue = currentNetWorth * 0.6;
+  const startYear = new Date().getFullYear();
 
   for (let i = 0; i <= years; i++) {
     const age = assumptions.currentAge + i;
     const savings = income - expenses;
-    investmentValue = investmentValue * (1 + assumptions.annualInvestmentReturn) + Math.max(0, savings);
-    netWorth = netWorth + savings;
 
     points.push({
-      year: new Date().getFullYear() + i,
+      year: startYear + i,
       age,
       netWorth: Math.round(netWorth),
       annualIncome: Math.round(income),
@@ -29,6 +28,8 @@ export function generateProjections(
       investmentValue: Math.round(investmentValue),
     });
 
+    investmentValue = investmentValue * (1 + assumptions.annualInvestmentReturn) + Math.max(0, savings);
+    netWorth += savings;
     income *= 1 + assumptions.annualIncomeGrowth;
     expenses *= 1 + assumptions.annualExpenseGrowth;
   }
