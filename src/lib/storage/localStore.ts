@@ -1,5 +1,7 @@
+import type { StateStorage } from 'zustand/middleware';
+
 // Abstraction over localStorage/Zustand so SQLite can be swapped in later.
-// All persistence calls go through these functions — UI components never touch storage directly.
+// All persistence calls go through these functions so UI components never touch storage directly.
 
 export interface StorageAdapter<T> {
   getAll: () => T[];
@@ -21,6 +23,43 @@ export function createLocalAdapter<T extends { id: string }>(
     save: (item) => setItems([...getItems(), item]),
     update: (id, updates) => setItems(getItems().map(i => i.id === id ? { ...i, ...updates } : i)),
     remove: (id) => setItems(getItems().filter(i => i.id !== id)),
+  };
+}
+
+export function createLegacyStateStorage(legacyKeys: string[] = []): StateStorage {
+  const getStorage = () => {
+    if (typeof window === 'undefined') return null;
+    return window.localStorage;
+  };
+
+  return {
+    getItem: (name) => {
+      const storage = getStorage();
+      if (!storage) return null;
+
+      const currentValue = storage.getItem(name);
+      if (currentValue !== null) return currentValue;
+
+      for (const legacyKey of legacyKeys) {
+        const legacyValue = storage.getItem(legacyKey);
+        if (legacyValue !== null) return legacyValue;
+      }
+
+      return null;
+    },
+    setItem: (name, value) => {
+      const storage = getStorage();
+      storage?.setItem(name, value);
+    },
+    removeItem: (name) => {
+      const storage = getStorage();
+      if (!storage) return;
+
+      storage.removeItem(name);
+      for (const legacyKey of legacyKeys) {
+        storage.removeItem(legacyKey);
+      }
+    },
   };
 }
 
