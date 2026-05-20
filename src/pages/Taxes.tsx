@@ -1,26 +1,30 @@
 import { useState } from 'react';
+import statesData from '../data/taxes/us/states.json';
 import { calculateFederalTax } from '../lib/taxes/taxEngine';
-import { FilingStatus } from '../types/tax';
-import { formatCurrency, formatPercent } from '../lib/utils/format';
 import { cn } from '../lib/utils/cn';
+import { formatCurrency, formatPercent } from '../lib/utils/format';
+import { useSettingsStore } from '../store/useSettingsStore';
+import { FilingStatus } from '../types/tax';
 
 export function Taxes() {
+  const onboarding = useSettingsStore(s => s.onboarding);
   const [grossIncome, setGrossIncome] = useState(120000);
   const [filingStatus, setFilingStatus] = useState<FilingStatus>('single');
   const [retirement, setRetirement] = useState(19500);
+  const [state, setState] = useState(onboarding?.state ?? 'CA');
 
   const result = calculateFederalTax({
     grossIncome,
     filingStatus,
     year: 2024,
+    state,
     retirementContributions: retirement,
   });
 
   return (
     <div className="p-6 space-y-6 max-w-screen-md mx-auto">
-      {/* Inputs */}
       <div className="bg-surface border border-border rounded-lg shadow-card p-5 space-y-4">
-        <h2 className="text-sm font-semibold text-foreground">Tax Inputs — 2024</h2>
+        <h2 className="text-sm font-semibold text-foreground">Tax Inputs - 2024</h2>
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-xs font-medium text-muted-foreground mb-1.5">
@@ -50,6 +54,22 @@ export function Taxes() {
           </div>
           <div>
             <label className="block text-xs font-medium text-muted-foreground mb-1.5">
+              State
+            </label>
+            <select
+              value={state}
+              onChange={e => setState(e.target.value)}
+              className="w-full px-3 py-2 text-sm border border-border rounded-md bg-surface text-foreground focus:outline-none focus:ring-1 focus:ring-brand"
+            >
+              {statesData.states.map(item => (
+                <option key={item.code} value={item.code}>
+                  {item.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-muted-foreground mb-1.5">
               401(k) / IRA Contributions
             </label>
             <input
@@ -62,25 +82,12 @@ export function Taxes() {
         </div>
       </div>
 
-      {/* Summary cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
           { label: 'Total Tax', value: formatCurrency(result.totalTax), color: 'text-negative' },
-          {
-            label: 'Effective Rate',
-            value: formatPercent(result.effectiveRate),
-            color: 'text-foreground',
-          },
-          {
-            label: 'Marginal Rate',
-            value: formatPercent(result.marginalRate),
-            color: 'text-foreground',
-          },
-          {
-            label: 'After-Tax Income',
-            value: formatCurrency(result.afterTaxIncome),
-            color: 'text-positive',
-          },
+          { label: 'Effective Rate', value: formatPercent(result.effectiveRate), color: 'text-foreground' },
+          { label: 'Marginal Rate', value: formatPercent(result.marginalRate), color: 'text-foreground' },
+          { label: 'After-Tax Income', value: formatCurrency(result.afterTaxIncome), color: 'text-positive' },
         ].map(({ label, value, color }) => (
           <div key={label} className="bg-surface border border-border rounded-lg shadow-card p-4">
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
@@ -91,51 +98,23 @@ export function Taxes() {
         ))}
       </div>
 
-      {/* Breakdown */}
       <div className="bg-surface border border-border rounded-lg shadow-card">
         <div className="px-5 py-4 border-b border-border">
           <h2 className="text-sm font-semibold text-foreground">Tax Breakdown</h2>
         </div>
         <div className="divide-y divide-border">
           {[
-            {
-              label: 'Gross Income',
-              value: formatCurrency(result.grossIncome),
-              muted: false,
-            },
-            {
-              label: 'Retirement Contributions',
-              value: `−${formatCurrency(result.grossIncome - result.adjustedGrossIncome)}`,
-              muted: true,
-            },
-            {
-              label: 'Adjusted Gross Income',
-              value: formatCurrency(result.adjustedGrossIncome),
-              muted: false,
-            },
-            {
-              label: 'Standard Deduction',
-              value: `−${formatCurrency(result.adjustedGrossIncome - result.taxableIncome)}`,
-              muted: true,
-            },
-            {
-              label: 'Taxable Income',
-              value: formatCurrency(result.taxableIncome),
-              muted: false,
-            },
+            { label: 'Gross Income', value: formatCurrency(result.grossIncome), muted: false },
+            { label: 'Retirement Contributions', value: `-${formatCurrency(result.grossIncome - result.adjustedGrossIncome)}`, muted: true },
+            { label: 'Adjusted Gross Income', value: formatCurrency(result.adjustedGrossIncome), muted: false },
+            { label: 'Standard Deduction', value: `-${formatCurrency(result.adjustedGrossIncome - result.taxableIncome)}`, muted: true },
+            { label: 'Taxable Income', value: formatCurrency(result.taxableIncome), muted: false },
           ].map(({ label, value, muted }) => (
             <div key={label} className="px-5 py-3 flex justify-between items-center">
-              <span
-                className={cn('text-sm', muted ? 'text-muted-foreground' : 'text-foreground font-medium')}
-              >
+              <span className={cn('text-sm', muted ? 'text-muted-foreground' : 'text-foreground font-medium')}>
                 {label}
               </span>
-              <span
-                className={cn(
-                  'text-sm tabular-nums',
-                  muted ? 'text-muted-foreground' : 'text-foreground font-medium'
-                )}
-              >
+              <span className={cn('text-sm tabular-nums', muted ? 'text-muted-foreground' : 'text-foreground font-medium')}>
                 {value}
               </span>
             </div>
