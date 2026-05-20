@@ -63,6 +63,14 @@ export function createLegacyStateStorage(legacyKeys: string[] = []): StateStorag
   };
 }
 
+export function clearStateStorageKeys(keys: string[]): void {
+  if (typeof window === 'undefined') return;
+
+  for (const key of keys) {
+    window.localStorage.removeItem(key);
+  }
+}
+
 export function generateId(): string {
-  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+  return crypto.randomUUID();
 }
