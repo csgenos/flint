@@ -1,7 +1,15 @@
 import { TaxInput, TaxResult, TaxBreakdownItem } from '../../types/tax';
 import federalData from '../../data/taxes/us/federal.json';
+import statesData from '../../data/taxes/us/states.json';
 
 interface Bracket { min: number; max: number | null; rate: number; }
+
+const additionalMedicareThresholds = {
+  single: 200000,
+  head_of_household: 200000,
+  married_filing_jointly: 250000,
+  married_filing_separately: 125000,
+} as const;
 
 function calculateBracketTax(taxableIncome: number, brackets: Bracket[]): number {
   let tax = 0;
@@ -35,13 +43,15 @@ export function calculateFederalTax(input: TaxInput): TaxResult {
   const marginalRate = getMarginalRate(taxableIncome, statusData.brackets as Bracket[]);
 
   const { socialSecurity, medicare } = yearData.ficaRates;
+  const medicareThreshold = additionalMedicareThresholds[input.filingStatus] ?? medicare.additionalThreshold;
   const ssTax = Math.min(input.grossIncome, socialSecurity.wageBase) * socialSecurity.rate;
   const medicareTax =
     input.grossIncome * medicare.rate +
-    Math.max(0, input.grossIncome - medicare.additionalThreshold) * medicare.additionalRate;
+    Math.max(0, input.grossIncome - medicareThreshold) * medicare.additionalRate;
   const ficaTax = ssTax + medicareTax;
 
-  const stateTax = 0;
+  const stateConfig = statesData.states.find(state => state.code === input.state);
+  const stateTax = stateConfig?.noIncomeTax ? 0 : taxableIncome * (stateConfig?.rate ?? 0);
   const totalTax = federalTax + stateTax + ficaTax;
   const effectiveRate = input.grossIncome > 0 ? totalTax / input.grossIncome : 0;
   const afterTaxIncome = input.grossIncome - totalTax;
@@ -50,7 +60,7 @@ export function calculateFederalTax(input: TaxInput): TaxResult {
     { label: 'Federal Income Tax', amount: federalTax, rate: marginalRate },
     { label: 'Social Security', amount: ssTax, rate: socialSecurity.rate },
     { label: 'Medicare', amount: medicareTax, rate: medicare.rate },
-    { label: 'State Income Tax', amount: stateTax },
+    { label: stateConfig ? `${stateConfig.name} Income Tax` : 'State Income Tax', amount: stateTax, rate: stateConfig?.rate },
   ];
 
   return {
