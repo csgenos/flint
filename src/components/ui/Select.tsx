@@ -16,7 +16,7 @@ interface SelectProps {
   error?: string;
 }
 
-export function Select({ value, onValueChange, options, placeholder = 'Select…', label, error }: SelectProps) {
+export function Select({ value, onValueChange, options, placeholder = 'Select...', label, error }: SelectProps) {
   return (
     <div className="space-y-1">
       {label && <label className="block text-xs font-medium text-foreground">{label}</label>}
