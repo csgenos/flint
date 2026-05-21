@@ -1,11 +1,13 @@
 import { useState } from 'react';
-import { Pencil, Plus, Trash2 } from 'lucide-react';
+import { Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react';
 import { AccountForm } from '../components/forms/AccountForm';
 import { Button } from '../components/ui/Button';
 import { Modal } from '../components/ui/Modal';
 import { FlintWordmark } from '../components/branding/FlintLogo';
+import { checkForAppUpdates, isDesktopRuntime } from '../lib/desktop/updater';
 import { cn } from '../lib/utils/cn';
 import { formatCurrency } from '../lib/utils/format';
+import { toast } from '../lib/utils/toast';
 import { useFinanceStore } from '../store/useFinanceStore';
 import { useSettingsStore } from '../store/useSettingsStore';
 import { Account } from '../types/finance';
@@ -15,6 +17,7 @@ export function Settings() {
   const { accounts, transactions, recurringExpenses, paychecks, deleteAccount } = useFinanceStore();
   const [accountModalOpen, setAccountModalOpen] = useState(false);
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
+  const [checkingUpdates, setCheckingUpdates] = useState(false);
 
   const openAdd = () => { setEditingAccount(null); setAccountModalOpen(true); };
   const openEdit = (account: Account) => { setEditingAccount(account); setAccountModalOpen(true); };
@@ -38,6 +41,18 @@ export function Settings() {
     { value: 'CAD', label: 'CAD - Canadian Dollar' },
     { value: 'AUD', label: 'AUD - Australian Dollar' },
   ];
+
+  const handleUpdateCheck = async () => {
+    setCheckingUpdates(true);
+    try {
+      await checkForAppUpdates();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unable to check for updates.';
+      toast(message, 'warning');
+    } finally {
+      setCheckingUpdates(false);
+    }
+  };
 
   return (
     <div className="p-6 space-y-5 max-w-screen-md mx-auto">
@@ -104,6 +119,18 @@ export function Settings() {
           <FlintWordmark imageClassName="h-10" />
           <p className="text-sm text-foreground font-medium">Version 0.2.0</p>
           <p className="text-xs text-muted-foreground">Built with React, TypeScript, and local-first storage.</p>
+          {isDesktopRuntime() && (
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              loading={checkingUpdates}
+              onClick={handleUpdateCheck}
+            >
+              <RefreshCw size={13} />
+              Check for Updates
+            </Button>
+          )}
         </div>
       </div>
 

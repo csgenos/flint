@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Flint",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "identifier": "com.csgenos.flint",
   "build": {
     "beforeDevCommand": "pnpm dev",
@@ -20,11 +20,40 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' http://localhost:5173 ws://localhost:5173"
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' http://localhost:5173 ws://localhost:5173 https://github.com https://api.github.com https://objects.githubusercontent.com"
     }
   },
   "bundle": {
     "active": true,
-    "targets": "all"
+    "targets": ["nsis", "msi"],
+    "createUpdaterArtifacts": true,
+    "publisher": "csgenos",
+    "homepage": "https://github.com/csgenos/flint",
+    "shortDescription": "A local-first personal finance desktop app.",
+    "longDescription": "Flint is a local-first personal finance desktop app for tracking accounts, budgets, bills, paychecks, cash flow, scenarios, projections, and taxes.",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.ico"
+    ],
+    "windows": {
+      "nsis": {
+        "installMode": "perMachine",
+        "installerIcon": "icons/icon.ico",
+        "languages": ["English"]
+      }
+    }
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDlCNEEyRjZDQjkzQkMwNDkKUldSSndEdTViQzlLbS9UQ1B4Z01udFE4OGliWmpkWDdYUFZYVnNRNjd2Y2NxN0Vha0VxMjZtbUMK",
+      "endpoints": [
+        "https://github.com/csgenos/flint/releases/latest/download/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
+      }
+    }
   }
 }
